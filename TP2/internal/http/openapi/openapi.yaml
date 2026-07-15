@@ -1,0 +1,113 @@
+openapi: 3.0.3
+info:
+  title: Mira API
+  version: v1
+  description: API de gestion de notes avec stockage en mémoire.
+servers:
+  - url: http://localhost:8080
+paths:
+  /api/v1/notes:
+    get:
+      summary: Lister les notes
+      parameters:
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200': {description: Liste des notes, content: {application/json: {schema: {$ref: '#/components/schemas/NotesResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+    post:
+      summary: Créer une note
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/CreateNote'}, example: {title: Courses, content: Acheter du lait}}}
+      responses:
+        '201': {description: Note créée, content: {application/json: {schema: {$ref: '#/components/schemas/NoteResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+  /api/v1/notes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/id'
+    get:
+      summary: Récupérer une note
+      responses:
+        '200': {description: Note trouvée, content: {application/json: {schema: {$ref: '#/components/schemas/NoteResponse'}}}}
+        '404': {$ref: '#/components/responses/NotFound'}
+    patch:
+      summary: Mettre à jour partiellement une note
+      requestBody:
+        required: true
+        content: {application/json: {schema: {$ref: '#/components/schemas/UpdateNote'}, example: {content: Acheter du lait et du pain}}}
+      responses:
+        '200': {description: Note modifiée, content: {application/json: {schema: {$ref: '#/components/schemas/NoteResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+        '404': {$ref: '#/components/responses/NotFound'}
+    delete:
+      summary: Supprimer une note
+      responses:
+        '204': {description: Note supprimée}
+        '404': {$ref: '#/components/responses/NotFound'}
+  /api/v1/search:
+    get:
+      summary: Rechercher dans les titres et contenus
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema: {type: string, minLength: 1}
+          example: lait
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200': {description: Résultats de recherche, content: {application/json: {schema: {$ref: '#/components/schemas/NotesResponse'}}}}
+        '400': {$ref: '#/components/responses/BadRequest'}
+components:
+  parameters:
+    id: {name: id, in: path, required: true, schema: {type: string}, example: note-1}
+    limit: {name: limit, in: query, schema: {type: integer, minimum: 1, maximum: 100, default: 20}}
+    offset: {name: offset, in: query, schema: {type: integer, minimum: 0, default: 0}}
+  responses:
+    BadRequest: {description: Requête invalide, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+    NotFound: {description: Note absente, content: {application/json: {schema: {$ref: '#/components/schemas/ErrorResponse'}}}}
+  schemas:
+    Note:
+      type: object
+      required: [id, title, content, created_at, updated_at]
+      properties:
+        id: {type: string, example: note-1}
+        title: {type: string, example: Courses}
+        content: {type: string, example: Acheter du lait}
+        created_at: {type: string, format: date-time}
+        updated_at: {type: string, format: date-time}
+    CreateNote:
+      type: object
+      required: [title]
+      properties:
+        title: {type: string, minLength: 1, maxLength: 200}
+        content: {type: string, maxLength: 10000}
+    UpdateNote:
+      type: object
+      minProperties: 1
+      properties:
+        title: {type: string, minLength: 1, maxLength: 200}
+        content: {type: string, maxLength: 10000}
+    Meta:
+      type: object
+      properties:
+        total: {type: integer}
+        limit: {type: integer}
+        offset: {type: integer}
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: {type: string, example: bad_request}
+            message: {type: string, example: title is required}
+    NoteResponse:
+      type: object
+      properties: {data: {$ref: '#/components/schemas/Note'}}
+    NotesResponse:
+      type: object
+      properties:
+        data: {type: array, items: {$ref: '#/components/schemas/Note'}}
+        meta: {$ref: '#/components/schemas/Meta'}

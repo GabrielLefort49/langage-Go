@@ -1,0 +1,223 @@
+basePath: /
+definitions:
+  core.CreateNoteInput:
+    properties:
+      content:
+        type: string
+      title:
+        type: string
+    type: object
+  core.Note:
+    properties:
+      content:
+        type: string
+      created_at:
+        type: string
+      id:
+        type: string
+      title:
+        type: string
+      updated_at:
+        type: string
+    type: object
+  core.UpdateNoteInput:
+    properties:
+      content:
+        type: string
+      title:
+        type: string
+    type: object
+  handlers.ErrorResponseDoc:
+    properties:
+      error:
+        properties:
+          code:
+            type: string
+          message:
+            type: string
+        type: object
+    type: object
+  handlers.NoteResponseDoc:
+    properties:
+      data:
+        $ref: '#/definitions/core.Note'
+    type: object
+  handlers.NotesResponseDoc:
+    properties:
+      data:
+        items:
+          $ref: '#/definitions/core.Note'
+        type: array
+      meta:
+        properties:
+          limit:
+            type: integer
+          offset:
+            type: integer
+          total:
+            type: integer
+        type: object
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: API HTTP de gestion de notes.
+  title: Mira API
+  version: "1.0"
+paths:
+  /api/v1/notes:
+    get:
+      parameters:
+      - default: 20
+        description: Nombre de résultats (1 à 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Position de départ
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.NotesResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponseDoc'
+      summary: Lister les notes
+      tags:
+      - notes
+    post:
+      consumes:
+      - application/json
+      parameters:
+      - description: Nouvelle note
+        in: body
+        name: note
+        required: true
+        schema:
+          $ref: '#/definitions/core.CreateNoteInput'
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/handlers.NoteResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponseDoc'
+      summary: Créer une note
+      tags:
+      - notes
+  /api/v1/notes/{id}:
+    delete:
+      parameters:
+      - description: Identifiant de note
+        in: path
+        name: id
+        required: true
+        type: string
+      responses:
+        "204":
+          description: No Content
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponseDoc'
+      summary: Supprimer une note
+      tags:
+      - notes
+    get:
+      parameters:
+      - description: Identifiant de note
+        in: path
+        name: id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.NoteResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponseDoc'
+      summary: Récupérer une note
+      tags:
+      - notes
+    patch:
+      consumes:
+      - application/json
+      parameters:
+      - description: Identifiant de note
+        in: path
+        name: id
+        required: true
+        type: string
+      - description: Champs à modifier
+        in: body
+        name: note
+        required: true
+        schema:
+          $ref: '#/definitions/core.UpdateNoteInput'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.NoteResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponseDoc'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponseDoc'
+      summary: Modifier partiellement une note
+      tags:
+      - notes
+  /api/v1/search:
+    get:
+      parameters:
+      - description: Texte recherché
+        in: query
+        name: q
+        required: true
+        type: string
+      - default: 20
+        description: Nombre de résultats (1 à 100)
+        in: query
+        name: limit
+        type: integer
+      - default: 0
+        description: Position de départ
+        in: query
+        name: offset
+        type: integer
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handlers.NotesResponseDoc'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/handlers.ErrorResponseDoc'
+      summary: Rechercher des notes
+      tags:
+      - notes
+swagger: "2.0"

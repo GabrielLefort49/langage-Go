@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Mira TP-final Unified Swagger</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5/swagger-ui.css" />
+    <style>body{margin:0;font-family:Arial,Helvetica,sans-serif}header{padding:12px;background:#1f2937;color:#fff;display:flex;gap:12px;align-items:center}#controls{display:flex;gap:8px;align-items:center}#swagger-ui{height:calc(100vh - 56px)}</style>
+  </head>
+  <body>
+    <header>
+      <div style="font-weight:700">Mira — Swagger centralisé</div>
+      <div id="controls">
+        <select id="specSelect">
+          <option value="http://localhost:8085/openapi.yaml">TP2 API (http://localhost:8085)</option>
+          <option value="http://localhost:8084/swagger.json">TP4 API (http://localhost:8084)</option>
+        </select>
+        <input id="specUrl" style="width:360px;padding:6px" placeholder="URL du spec (openapi.yaml / swagger.json) ou laisser la sélection" />
+        <button id="loadBtn">Charger</button>
+      </div>
+    </header>
+    <div id="swagger-ui"></div>
+
+    <script src="https://unpkg.com/swagger-ui-dist@5/swagger-ui-bundle.js"></script>
+    <script>
+      let ui = null;
+      function loadSpec(url) {
+        if (!url) return;
+        if (ui) {
+          ui.destroy();
+          document.getElementById('swagger-ui').innerHTML = '';
+        }
+        ui = SwaggerUIBundle({
+          url: url,
+          dom_id: '#swagger-ui',
+          deepLinking: true,
+          presets: [SwaggerUIBundle.presets.apis]
+        });
+      }
+      document.getElementById('loadBtn').addEventListener('click', () => {
+        const custom = document.getElementById('specUrl').value.trim();
+        const sel = document.getElementById('specSelect').value;
+        loadSpec(custom || sel);
+      });
+      // load default
+      loadSpec(document.getElementById('specSelect').value);
+    </script>
+  </body>
+</html>

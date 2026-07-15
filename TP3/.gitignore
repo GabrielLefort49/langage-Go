@@ -1,0 +1,2 @@
+# Exécutables intermédiaires créés par Go quand GOTMPDIR pointe vers le projet.
+.gotmp/
