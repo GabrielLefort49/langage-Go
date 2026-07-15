@@ -2,11 +2,10 @@ package enricher
 
 import (
 	"context"
-	"crypto/sha256"
-	"math"
 	"strings"
 	"time"
 
+	"mira/tp4/internal/core"
 	"mira/tp4/internal/store/postgres"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -62,19 +61,8 @@ func (e *Enricher) process(ctx context.Context, id string) error {
 	}
 	// score: simple score based on length
 	score := float64(len(n.Content)) / 100.0
-	// embedding: deterministic pseudo-embedding from sha256
-	embedding := make([]float32, 1536)
-	hash := sha256.Sum256([]byte(n.Content))
-	for i := 0; i < 1536; i++ {
-		// derive 4-byte chunk from repeated hash
-		v := uint32(0)
-		for j := 0; j < 4; j++ {
-			b := hash[(i*4+j)%len(hash)]
-			v = (v << 8) | uint32(b)
-		}
-		f := float32(math.Mod(float64(v), 1000.0)) / 1000.0
-		embedding[i] = f
-	}
+	// embedding: deterministic pseudo-embedding derived from content
+	embedding := core.BuildEmbedding(n.Content)
 	// store results
 	// convert []float32 to []float32 as pgx accepts
 	_ = e.store.SetEnrichmentResult(ctx, id, &summary, &score, embedding)

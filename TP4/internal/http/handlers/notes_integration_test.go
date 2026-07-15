@@ -148,6 +148,25 @@ func TestNotesAPIEndToEnd(t *testing.T) {
 		t.Fatalf("expected at least one search result")
 	}
 
+	variantResp, err := http.Get(server.URL + "/api/v1/search?q=keyword")
+	if err != nil {
+		t.Fatalf("variant search: %v", err)
+	}
+	defer variantResp.Body.Close()
+	if variantResp.StatusCode != http.StatusOK {
+		t.Fatalf("variant search status = %d", variantResp.StatusCode)
+	}
+
+	var variantResult struct {
+		Data []core.Note `json:"data"`
+	}
+	if err := json.NewDecoder(variantResp.Body).Decode(&variantResult); err != nil {
+		t.Fatalf("decode variant search response: %v", err)
+	}
+	if len(variantResult.Data) == 0 {
+		t.Fatalf("expected vector-style search to match near variants")
+	}
+
 	fmt.Println("integration test passed for note", created.Data.ID)
 }
 

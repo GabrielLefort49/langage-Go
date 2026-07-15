@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sort"
 	"strings"
 	"time"
 
@@ -71,22 +72,80 @@ func (s *Store) List(ctx context.Context, limit, offset int) ([]core.Note, int, 
 }
 
 func (s *Store) Search(ctx context.Context, query string, limit, offset int) ([]core.Note, int, error) {
-	// hybrid: full-text match OR vector similarity if query is short; for simplicity use full-text
 	q := strings.TrimSpace(query)
-	rows, err := s.pool.Query(ctx, `SELECT id,title,content,created_at,updated_at,enrichment_status FROM notes WHERE to_tsvector('english', coalesce(title,'')||' '||coalesce(content,'')) @@ plainto_tsquery('english',$1) ORDER BY created_at DESC LIMIT $2 OFFSET $3`, q, limit, offset)
+	if q == "" {
+		return nil, 0, nil
+	}
+
+	queryEmbedding := core.BuildEmbedding(q)
+
+	rows, err := s.pool.Query(ctx, `
+		SELECT n.id, n.title, n.content, n.created_at, n.updated_at, n.enrichment_status,
+			COALESCE(neb.embedding::text, '') AS embedding_payload
+		FROM notes n
+		LEFT JOIN note_embeddings neb ON neb.note_id = n.id
+		ORDER BY n.created_at DESC
+	`)
 	if err != nil {
 		return nil, 0, err
 	}
 	defer rows.Close()
-	notes := []core.Note{}
+
+	type scoredNote struct {
+		note  core.Note
+		score float64
+	}
+
+	scored := []scoredNote{}
 	for rows.Next() {
 		var n core.Note
-		_ = rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.UpdatedAt, &n.EnrichmentStatus)
-		notes = append(notes, n)
+		var embeddingPayload string
+		_ = rows.Scan(&n.ID, &n.Title, &n.Content, &n.CreatedAt, &n.UpdatedAt, &n.EnrichmentStatus, &embeddingPayload)
+
+		lexicalScore := core.LexicalScore(n.Title+" "+n.Content, q)
+		vectorScore := float32(0)
+		if strings.TrimSpace(embeddingPayload) != "" {
+			var storedEmbedding []float32
+			if err := json.Unmarshal([]byte(embeddingPayload), &storedEmbedding); err == nil {
+				vectorScore = core.CosineSimilarity(queryEmbedding, storedEmbedding)
+			}
+		}
+
+		combinedScore := doubleScore(lexicalScore, vectorScore)
+		if combinedScore > 0 {
+			n.Score = ptrFloat64(combinedScore)
+			scored = append(scored, scoredNote{note: n, score: combinedScore})
+		}
 	}
-	var total int
-	_ = s.pool.QueryRow(ctx, `SELECT COUNT(*) FROM notes WHERE to_tsvector('english', coalesce(title,'')||' '||coalesce(content,'')) @@ plainto_tsquery('english',$1)`, q).Scan(&total)
-	return notes, total, nil
+
+	sort.Slice(scored, func(i, j int) bool {
+		if scored[i].score == scored[j].score {
+			return scored[i].note.CreatedAt.After(scored[j].note.CreatedAt)
+		}
+		return scored[i].score > scored[j].score
+	})
+
+	notes := make([]core.Note, 0, len(scored))
+	for _, item := range scored {
+		notes = append(notes, item.note)
+	}
+
+	if offset >= len(notes) {
+		return []core.Note{}, len(notes), nil
+	}
+	end := offset + limit
+	if end > len(notes) {
+		end = len(notes)
+	}
+	return notes[offset:end], len(notes), nil
+}
+
+func doubleScore(lexical, vector float32) float64 {
+	return float64(lexical*0.7 + vector*0.3)
+}
+
+func ptrFloat64(value float64) *float64 {
+	return &value
 }
 
 func (s *Store) Update(ctx context.Context, id string, input core.UpdateNoteInput) (core.Note, error) {
