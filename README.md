@@ -82,4 +82,5 @@ Remarque : j’ai activé CORS côté TP2 et TP4 afin que l’agrégateur Swagge
 - Vérifier qu’un port est libre : `netstat -ano | findstr :8084`
 - Tuer un processus : `taskkill /PID <pid> /F`
 
-Si vous voulez, je peux committer ce `README.md` mis à jour et l’ouvrir dans l’éditeur.
+
+Preparation des documents non fini 
