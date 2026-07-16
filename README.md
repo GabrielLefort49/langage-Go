@@ -6,6 +6,7 @@ Ce dépôt regroupe les quatre TP (TP1..TP4) en une version intégrée :
 - `TP2` : API HTTP principale (création / lecture / mise à jour / suppression)
 - `TP3` : exercices pédagogiques (concurrence)
 - `TP4` : API + enricher asynchrone + recherche
+- `TP5` : serveur MCP (`mira-mcp`) exposant la mémoire aux agents IA — voir [TP5/README.md](TP5/README.md)
 
 Tout le système partage une base PostgreSQL (variable `DATABASE_URL`).
 

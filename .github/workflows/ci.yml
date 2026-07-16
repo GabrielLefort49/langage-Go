@@ -1,0 +1,117 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  GO_VERSION: "1.26"
+
+jobs:
+  test:
+    name: build / vet / test (${{ matrix.module }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        module: [TP1, TP2, TP3, TP5]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: gofmt check
+        working-directory: ${{ matrix.module }}
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        working-directory: ${{ matrix.module }}
+        run: go vet ./...
+
+      - name: go build
+        working-directory: ${{ matrix.module }}
+        run: go build ./...
+
+      - name: go test -race
+        working-directory: ${{ matrix.module }}
+        run: go test -race ./...
+
+  test-tp4:
+    name: build / vet / test (TP4, with Postgres)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:15
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: mira
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/mira?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: gofmt check
+        working-directory: TP4
+        run: |
+          unformatted=$(gofmt -l .)
+          if [ -n "$unformatted" ]; then
+            echo "The following files are not gofmt-formatted:"
+            echo "$unformatted"
+            exit 1
+          fi
+
+      - name: go vet
+        working-directory: TP4
+        run: go vet ./...
+
+      - name: go build
+        working-directory: TP4
+        run: go build ./...
+
+      - name: go test -race (unit + Postgres integration)
+        working-directory: TP4
+        run: go test -race ./...
+
+      - name: smoke test the running API
+        working-directory: TP4
+        run: |
+          go build -o /tmp/tp4-api ./cmd/api
+          PORT=8084 /tmp/tp4-api &
+          for i in $(seq 1 20); do
+            if curl -sf http://localhost:8084/healthz > /dev/null; then break; fi
+            sleep 0.5
+          done
+          curl -sf http://localhost:8084/healthz
+          id=$(curl -sf -X POST http://localhost:8084/api/v1/notes \
+            -H "Content-Type: application/json" \
+            -d '{"title":"CI smoke test","content":"created by GitHub Actions"}' | \
+            python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["id"])')
+          echo "created note $id"
+          for i in $(seq 1 20); do
+            status=$(curl -sf "http://localhost:8084/api/v1/notes/$id" | \
+              python3 -c 'import json,sys; print(json.load(sys.stdin)["data"]["enrichment_status"])')
+            if [ "$status" = "done" ]; then echo "enrichment done"; exit 0; fi
+            sleep 0.5
+          done
+          echo "enrichment did not complete in time"
+          exit 1

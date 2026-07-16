@@ -3,11 +3,10 @@ package main
 import (
 	"context"
 	"errors"
-	"fmt"
-	"io/ioutil"
-	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"os/signal"
 	"strings"
 	"syscall"
 	"time"
@@ -20,6 +19,8 @@ import (
 )
 
 func main() {
+	logger := slog.New(slog.NewJSONHandler(os.Stdout, nil))
+
 	dbURL := os.Getenv("DATABASE_URL")
 	if dbURL == "" {
 		dbURL = "postgres://postgres:postgres@localhost:5432/mira?sslmode=disable"
@@ -27,17 +28,18 @@ func main() {
 	ctx := context.Background()
 	pool, err := pgxpool.New(ctx, dbURL)
 	if err != nil {
-		log.Fatalf("pgxpool.New: %v", err)
+		logger.Error("pgxpool.New", "error", err)
+		os.Exit(1)
 	}
 	defer pool.Close()
 
-	// apply migrations (simple)
 	if err := applyMigrations(ctx, pool); err != nil {
-		log.Fatalf("migrations: %v", err)
+		logger.Error("migrations", "error", err)
+		os.Exit(1)
 	}
 
 	store := pgstore.New(pool)
-	enr := enricher.New(pool, store, 4, 15*time.Second)
+	enr := enricher.New(pool, store, 4, 15*time.Second, logger)
 
 	notesHandler := handlers.NewNotesHandler(store, enr)
 	searchHandler := handlers.NewSearchHandler(store)
@@ -60,15 +62,40 @@ func main() {
 	if !strings.HasPrefix(addr, ":") {
 		addr = ":" + addr
 	}
-	fmt.Println("listening on", addr)
-	// Wrap with CORS handler to allow Swagger aggregator and cross-origin requests
+
+	// Wrap with CORS handler to allow Swagger aggregator and cross-origin requests.
 	handler := cors(mux)
-	srv := &http.Server{Addr: addr, Handler: handler}
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, syscall.EADDRINUSE) && err != http.ErrServerClosed {
-		log.Fatalf("server: %v", err)
-	}
-	if errors.Is(err, syscall.EADDRINUSE) {
-		fmt.Println("port already in use, stop the previous process or set PORT to another value")
+	srv := &http.Server{Addr: addr, Handler: handler, ReadHeaderTimeout: 5 * time.Second}
+
+	shutdownCtx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	serverErr := make(chan error, 1)
+	go func() {
+		logger.Info("API listening", "address", addr)
+		serverErr <- srv.ListenAndServe()
+	}()
+
+	select {
+	case err := <-serverErr:
+		if err != nil && !errors.Is(err, http.ErrServerClosed) {
+			if errors.Is(err, syscall.EADDRINUSE) {
+				logger.Error("port already in use, stop the previous process or set PORT to another value", "address", addr)
+			} else {
+				logger.Error("server stopped unexpectedly", "error", err)
+			}
+			os.Exit(1)
+		}
+	case <-shutdownCtx.Done():
+		stop()
+		logger.Info("shutdown signal received, draining connections")
+		httpShutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(httpShutdownCtx); err != nil {
+			logger.Error("graceful shutdown failed", "error", err)
+		}
+		enr.Close(10 * time.Second)
+		logger.Info("server stopped")
 	}
 }
 
@@ -87,7 +114,7 @@ func cors(next http.Handler) http.Handler {
 }
 
 func applyMigrations(ctx context.Context, pool *pgxpool.Pool) error {
-	b, err := ioutil.ReadFile("migrations/001_init.sql")
+	b, err := os.ReadFile("migrations/001_init.sql")
 	if err != nil {
 		return err
 	}

@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -41,7 +42,7 @@ func TestNotesAPIEndToEnd(t *testing.T) {
 	}
 
 	store := pgstore.New(pool)
-	enr := enricher.New(pool, store, 1, 2*time.Second)
+	enr := enricher.New(pool, store, 1, 2*time.Second, slog.New(slog.NewTextHandler(os.Stderr, nil)))
 	h := handlers.NewNotesHandler(store, enr)
 	search := handlers.NewSearchHandler(store)
 

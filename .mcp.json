@@ -1,0 +1,14 @@
+{
+  "mcpServers": {
+    "mira": {
+      "command": "mira-mcp",
+      "args": [],
+      "env": {
+        "MIRA_API_URL": "http://localhost:8084",
+        "MIRA_TIMEOUT": "15s",
+        "MIRA_ENRICH_WAIT": "5s",
+        "MIRA_LOG_LEVEL": "info"
+      }
+    }
+  }
+}
