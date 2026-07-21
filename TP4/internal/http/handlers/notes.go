@@ -186,14 +186,52 @@ func SwaggerSpecHandler(w http.ResponseWriter, r *http.Request) {
     "title": "mira TP4 API",
     "version": "1.0.0"
   },
+  "components": {
+    "schemas": {
+      "CreateNoteInput": {
+        "type": "object",
+        "required": ["title", "content"],
+        "properties": {
+          "title": {"type": "string"},
+          "content": {"type": "string"}
+        }
+      },
+      "UpdateNoteInput": {
+        "type": "object",
+        "properties": {
+          "title": {"type": "string"},
+          "content": {"type": "string"}
+        }
+      }
+    }
+  },
   "paths": {
     "/api/v1/notes": {
-      "post": {"summary": "Create a note", "responses": {"201": {"description": "Created"}}},
+      "post": {
+        "summary": "Create a note",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {"schema": {"$ref": "#/components/schemas/CreateNoteInput"}}
+          }
+        },
+        "responses": {"201": {"description": "Created"}}
+      },
       "get": {"summary": "List notes", "responses": {"200": {"description": "OK"}}}
     },
     "/api/v1/notes/{id}": {
+      "parameters": [{"name": "id", "in": "path", "required": true, "schema": {"type": "string"}}],
       "get": {"summary": "Get a note", "responses": {"200": {"description": "OK"}}},
-      "patch": {"summary": "Update a note", "responses": {"200": {"description": "OK"}}},
+      "patch": {
+        "summary": "Update a note",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {"schema": {"$ref": "#/components/schemas/UpdateNoteInput"}}
+          }
+        },
+        "responses": {"200": {"description": "OK"}}
+      },
       "delete": {"summary": "Delete a note", "responses": {"204": {"description": "Deleted"}}}
     },
     "/api/v1/search": {
