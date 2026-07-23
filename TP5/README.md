@@ -94,9 +94,30 @@ ci-dessous.
 
 ---
 
+## Démarrage rapide (checklist)
+
+1. Postgres up + DB créée (section **Pré-requis**)
+2. `go run ./cmd/api` (TP4) → `GET /healthz` répond `ok`
+3. `go install ./cmd/mira-mcp` (TP5) → `mira-mcp` accessible dans le `PATH`
+4. `.mcp.json` présent à la racine de `TP-final/TP5` (fourni dans ce dossier)
+5. Ouvrir Claude Code depuis `TP-final/TP5` (ou copier `.mcp.json` à la racine
+   du projet ouvert) → `/mcp` doit lister `mira` avec 4 tools
+
+```powershell
+cd TP-final\TP5
+go build ./...
+go vet ./...
+go test ./...
+```
+Les trois doivent passer sans erreur : c'est la validation la plus fiable
+(le test manuel du transport stdio ci-dessous est utile mais plus fragile,
+voir la note associée).
+
+---
+
 ## Enregistrement dans **Claude Code**
 
-Un fichier d'exemple [`.mcp.json`](.mcp.json) est fourni. Deux méthodes :
+Un fichier [`.mcp.json`](.mcp.json) est fourni à la racine de ce dossier. Deux méthodes :
 
 ### A. Fichier `.mcp.json` (scope projet)
 
@@ -204,6 +225,15 @@ Le serveur ne doit rien écrire sur stdout à part le protocole :
 # -> stdout : réponses JSON-RPC (initialize + 4 tools)
 # -> stderr : logs slog
 ```
+
+> **Note** : ce test manuel est fragile sous Windows/Git Bash — dès que le
+> pipe stdin atteint EOF (fin d'entrée), le serveur considère la connexion
+> fermée (`server is closing: EOF`) et peut s'arrêter avant d'avoir eu le
+> temps d'écrire les réponses sur stdout, même si tout fonctionne
+> correctement côté protocole. C'est une limite du test, pas un bug du
+> serveur. Pour une vérification fiable, préférez `go test ./...`
+> (client MCP en mémoire qui garde la connexion ouverte) ou l'intégration
+> réelle dans Claude Code (`/mcp`).
 
 ---
 

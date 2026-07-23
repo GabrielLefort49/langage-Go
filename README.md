@@ -1,12 +1,15 @@
 # TP Final - Mira
 
-Ce dépôt regroupe les quatre TP (TP1..TP4) en une version intégrée :
+Ce dépôt regroupe les cinq TP (TP1..TP5) en une version intégrée :
 
-- `TP1` : CLI cliente
-- `TP2` : API HTTP principale (création / lecture / mise à jour / suppression)
-- `TP3` : exercices pédagogiques (concurrence)
-- `TP4` : API + enricher asynchrone + recherche
-- `TP5` : serveur MCP (`mira-mcp`) exposant la mémoire aux agents IA — voir [TP5/README.md](TP5/README.md)
+- `TP1` : CLI cliente — [vidéo de preuve](TP1/Video%20preuve%20TP1.mp4)
+- `TP2` : API HTTP principale (création / lecture / mise à jour / suppression) — [README](TP2/README.md)
+- `TP3` : exercices pédagogiques (concurrence) — [README](TP3/README.md)
+- `TP4` : API + enricher asynchrone + recherche — [README](TP4/README.md) · [vidéo de preuve](TP4/Vid%C3%A9o%20preuve%20TP4.mp4)
+- `TP5` : serveur MCP (`mira-mcp`) exposant la mémoire aux agents IA — [README](TP5/README.md)
+
+Un README détaillé est fourni pour chaque TP sauf `TP1` (CLI simple, voir sa
+vidéo de preuve). Des vidéos de preuve sont disponibles pour `TP1` et `TP4`.
 
 Tout le système partage une base PostgreSQL (variable `DATABASE_URL`).
 
